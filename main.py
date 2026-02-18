@@ -1,30 +1,22 @@
-from pyrogram.errors.exceptions.bad_request_400 import StickerEmojiInvalid
 import requests
-import m3u8
-import json
 import subprocess
 from pyrogram import Client, filters
-from pyrogram.types.messages_and_media import message
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import FloodWait
 from pyromod import listen
 from pyrogram.types import Message
-from p_bar import progress_bar
 from subprocess import getstatusoutput
 from aiohttp import ClientSession
 import helper
 from logger import logging
 import time
 import asyncio
-from pyrogram.types import User, Message
 import sys
 import re
 import os
-import urllib
-import urllib.parse
-import tgcrypto
-import cloudscraper
 
+# -------------------------
+# Bot Setup
+# -------------------------
 bot = Client(
     "bot",
     bot_token=os.environ.get("BOT_TOKEN", "add"),
@@ -42,7 +34,9 @@ photo = "photo.jpg"
 token_cp = "your cp token"
 
 
-# ✅ FIXED: /start now works for everyone
+# -------------------------
+# /start (for everyone)
+# -------------------------
 @bot.on_message(filters.command(["start"]))
 async def start_cmd(bot: Client, m: Message):
     await m.reply_text(
@@ -53,12 +47,18 @@ async def start_cmd(bot: Client, m: Message):
     )
 
 
+# -------------------------
+# /restart
+# -------------------------
 @bot.on_message(filters.command("restart"))
-async def restart_handler(_, m):
-    await m.reply_text("STOPPED", True)
+async def restart_handler(_, m: Message):
+    await m.reply_text("🚀 Restarting...")
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 
+# -------------------------
+# /txt
+# -------------------------
 @bot.on_message(filters.command(["txt"]))
 async def txt_cmd(bot: Client, m: Message):
     editable = await m.reply_text("**Please send TXT file for download**")
@@ -69,19 +69,21 @@ async def txt_cmd(bot: Client, m: Message):
     x = y
 
     path = f"./downloads/{m.chat.id}"
+    os.makedirs(path, exist_ok=True)
 
     try:
-        # ✅ FIXED: encoding safe
         with open(x, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
         content = content.split("\n")
+
         links = []
         for i in content:
             if i.strip():
                 links.append(i.split("://", 1))
+
         os.remove(x)
     except:
-        await m.reply_text("Invalid file input.")
+        await m.reply_text("❌ Invalid file input.")
         try:
             os.remove(x)
         except:
@@ -102,43 +104,35 @@ async def txt_cmd(bot: Client, m: Message):
     raw_text0 = input1.text
     await input1.delete(True)
 
-    if raw_text0 == "df":
-        b_name = file_name
-    else:
-        b_name = raw_text0
+    b_name = file_name if raw_text0 == "df" else raw_text0
 
     await editable.edit("**Enter resolution** `1080` , `720` , `480` , `360` , `240` , `144`")
     input2: Message = await bot.listen(editable.chat.id)
     raw_text2 = input2.text
     await input2.delete(True)
 
-    try:
-        if raw_text2 == "144":
-            res = "256x144"
-        elif raw_text2 == "240":
-            res = "426x240"
-        elif raw_text2 == "360":
-            res = "640x360"
-        elif raw_text2 == "480":
-            res = "854x480"
-        elif raw_text2 == "720":
-            res = "1280x720"
-        elif raw_text2 == "1080":
-            res = "1920x1080"
-        else:
-            res = "1280x720"
-    except Exception:
-        res = "UN"
+    if raw_text2 == "144":
+        res = "256x144"
+    elif raw_text2 == "240":
+        res = "426x240"
+    elif raw_text2 == "360":
+        res = "640x360"
+    elif raw_text2 == "480":
+        res = "854x480"
+    elif raw_text2 == "720":
+        res = "1280x720"
+    elif raw_text2 == "1080":
+        res = "1920x1080"
+    else:
+        raw_text2 = "720"
+        res = "1280x720"
 
     await editable.edit("**Now enter caption (or send `df` for default)**")
     input3: Message = await bot.listen(editable.chat.id)
     raw_text3 = input3.text
     await input3.delete(True)
 
-    if raw_text3 == "df":
-        MR = "Group Admin"
-    else:
-        MR = raw_text3
+    MR = "Group Admin" if raw_text3 == "df" else raw_text3
 
     await editable.edit("**If PW MPD links enter working token (else send df)**")
     input11: Message = await bot.listen(editable.chat.id)
@@ -162,16 +156,11 @@ async def txt_cmd(bot: Client, m: Message):
     else:
         thumb = "no"
 
-    if len(links) == 1:
-        count = 1
-    else:
-        count = int(raw_text)
+    count = 1 if len(links) == 1 else int(raw_text)
 
     try:
         for i in range(count - 1, len(links)):
-            # ----------------------------
-            # ✅ FIXED URL building
-            # ----------------------------
+
             V = (
                 links[i][1]
                 .replace("file/d/", "uc?export=download&id=")
@@ -186,7 +175,7 @@ async def txt_cmd(bot: Client, m: Message):
                 url = "https://" + V
 
             # ----------------------------
-            # Special cases
+            # SPECIAL CASES
             # ----------------------------
             if "visionias" in url:
                 async with ClientSession() as session:
@@ -211,50 +200,9 @@ async def txt_cmd(bot: Client, m: Message):
                 await m.reply_text("Brightcove links are not supported in this bot build.")
                 continue
 
-            elif "tencdn.classplusapp" in url:
-                headers = {
-                    "Host": "api.classplusapp.com",
-                    "x-access-token": f"{token_cp}",
-                    "user-agent": "Mobile-Android",
-                    "app-version": "1.4.37.1",
-                    "api-version": "18",
-                    "device-id": "5d0d17ac8b3c9f51",
-                    "device-details": "2848b866799971ca_2848b8667a33216c_SDK-30",
-                    "accept-encoding": "gzip",
-                }
-                params = (("url", f"{url}"),)
-                response = requests.get(
-                    "https://api.classplusapp.com/cams/uploader/video/jw-signed-url",
-                    headers=headers,
-                    params=params,
-                )
-                url = response.json()["url"]
-
-            elif "videos.classplusapp" in url:
-                url = requests.get(
-                    f"https://api.classplusapp.com/cams/uploader/video/jw-signed-url?url={url}",
-                    headers={"x-access-token": f"{token_cp}"},
-                ).json()["url"]
-
-            elif (
-                "media-cdn.classplusapp.com" in url
-                or "media-cdn-alisg.classplusapp.com" in url
-                or "media-cdn-a.classplusapp.com" in url
-            ):
-                headers = {"x-access-token": f"{token_cp}", "X-CDN-Tag": "empty"}
-                response = requests.get(
-                    f"https://api.classplusapp.com/cams/uploader/video/jw-signed-url?url={url}",
-                    headers=headers,
-                )
-                url = response.json()["url"]
-
             elif "encrypted.m" in url and "*" in url:
                 appxkey = url.split("*")[1]
                 url = url.split("*")[0]
-
-            elif url.startswith("https://videotest.adda247.com/"):
-                if url.split("/")[3] != "demo":
-                    url = f'https://videotest.adda247.com/demo/{url.split("https://videotest.adda247.com/")[1]}'
 
             name1 = (
                 links[i][0]
@@ -266,9 +214,6 @@ async def txt_cmd(bot: Client, m: Message):
                 .replace("|", "")
                 .replace("@", "")
                 .replace("*", "")
-                .replace(".", "")
-                .replace("https", "")
-                .replace("http", "")
                 .strip()
             )
 
@@ -277,88 +222,59 @@ async def txt_cmd(bot: Client, m: Message):
 
             name = f"{name1[:60]}"
 
-            if "youtu" in url:
-                ytf = f"b[height<={raw_text2}][ext=mp4]/bv[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
-            else:
-                ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
+            # ----------------------------
+            # Captions
+            # ----------------------------
+            cc = (
+                f"🎬 **Title:** `{name1}.mkv`\n"
+                f"🖥️ **Resolution:** [{res}]\n\n"
+                f"📘 **Course:** `{b_name}`\n\n"
+                f"🚀 **Extracted By:** `{MR}`"
+            )
 
-            if "jw-prod" in url:
-                cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
-            else:
-                cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+            cc1 = (
+                f"📄 **Title:** `{name1}.pdf`\n\n"
+                f"📘 **Course:** `{b_name}`\n\n"
+                f"🚀 **Extracted By:** `{MR}`"
+            )
+
+            cc2 = (
+                f"🖼️ **Title:** `{name1}.jpg`\n\n"
+                f"📘 **Course:** `{b_name}`\n\n"
+                f"🚀 **Extracted By:** `{MR}`"
+            )
+
+            # ----------------------------
+            # DOWNLOAD LOGIC
+            # ----------------------------
 
             try:
-                cc = (
-                    f"🎬 **Title:** `{name1}.mkv`\n"
-                    f"🖥️ **Resolution:** [{res}]\n\n"
-                    f"📘 **Course:** `{b_name}`\n\n"
-                    f"🚀 **Extracted By:** `{MR}`"
-                )
+                # ✅ PDF FIX (yt-dlp हटाया)
+                if ".pdf" in url:
+                    try:
+                        subprocess.run(["wget", "-O", f"{name}.pdf", url], check=True)
+                        await bot.send_document(chat_id=m.chat.id, document=f"{name}.pdf", caption=cc1)
+                        count += 1
+                        os.remove(f"{name}.pdf")
+                        continue
+                    except Exception as e:
+                        await m.reply_text(f"❌ PDF download failed: {e}\n\nLink: {url}")
+                        count += 1
+                        continue
 
-                cc1 = (
-                    f"📄 **Title:** `{name1}.pdf`\n\n"
-                    f"📘 **Course:** `{b_name}`\n\n"
-                    f"🚀 **Extracted By:** `{MR}`"
-                )
-
-                cc2 = (
-                    f"🖼️ **Title:** `{name1}.jpg`\n\n"
-                    f"📘 **Course:** `{b_name}`\n\n"
-                    f"🚀 **Extracted By:** `{MR}`"
-                )
-
-                ccyt = (
-                    f"🎬 **Title:** `{name1}.mkv`\n"
-                    f"🎥 **Video Link:** {url}\n"
-                    f"🖥️ **Resolution:** [{res}]\n\n"
-                    f"📘 **Course:** `{b_name}`\n\n"
-                    f"🚀 **Extracted By:** `{MR}`"
-                )
-
-                if "drive" in url:
-                    ka = await helper.download(url, name)
-                    await bot.send_document(chat_id=m.chat.id, document=ka, caption=cc1)
-                    count += 1
-                    os.remove(ka)
-                    time.sleep(1)
-
-                elif "pdf*" in url:
-                    pdf_key = url.split("*")[1]
-                    url = url.split("*")[0]
-                    pdf_enc = await helper.download_and_decrypt_pdf(url, name, pdf_key)
-                    await bot.send_document(chat_id=m.chat.id, document=pdf_enc, caption=cc1)
-                    count += 1
-                    os.remove(pdf_enc)
-                    continue
-
-                elif ".pdf" in url:
-                    cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
-                    download_cmd = f"{cmd} -R 25 --fragment-retries 25"
-                    os.system(download_cmd)
-                    await bot.send_document(chat_id=m.chat.id, document=f"{name}.pdf", caption=cc1)
-                    count += 1
-                    os.remove(f"{name}.pdf")
-
-                elif any(img in url.lower() for img in [".jpeg", ".png", ".jpg"]):
+                # Images
+                if any(img in url.lower() for img in [".jpeg", ".png", ".jpg"]):
                     subprocess.run(["wget", url, "-O", f"{name}.jpg"], check=True)
                     await bot.send_photo(chat_id=m.chat.id, caption=cc2, photo=f"{name}.jpg")
                     if os.path.exists(f"{name}.jpg"):
                         os.remove(f"{name}.jpg")
-
-                elif "youtu" in url:
-                    await bot.send_photo(chat_id=m.chat.id, photo=photo, caption=ccyt)
                     count += 1
+                    continue
 
-                elif ".ws" in url and url.endswith(".ws"):
-                    await helper.pdf_download(f"{api_url}utkash-ws?url={url}&authorization={api_token}", f"{name}.html")
-                    time.sleep(1)
-                    await bot.send_document(chat_id=m.chat.id, document=f"{name}.html", caption=cc1)
-                    os.remove(f"{name}.html")
-                    count += 1
-                    time.sleep(5)
-
-                elif "encrypted.m" in url:
-                    prog = await m.reply_text(f"Downloading encrypted video: **{name1}**")
+                # Encrypted appx video
+                if "encrypted.m" in url:
+                    prog = await m.reply_text(f"🔐 Downloading encrypted video: **{name1}**")
+                    cmd = f'yt-dlp -f "b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba" "{url}" -o "{name}.mp4"'
                     res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)
                     filename = res_file
                     await prog.delete(True)
@@ -367,24 +283,20 @@ async def txt_cmd(bot: Client, m: Message):
                     await asyncio.sleep(1)
                     continue
 
-                elif "drmcdni" in url or "drm/wv" in url:
-                    prog = await m.reply_text(f"Decrypting DRM video: **{name1}**")
-                    res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
-                    filename = res_file
-                    await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
-                    count += 1
-                    await asyncio.sleep(1)
-                    continue
+                # Normal video
+                prog = await m.reply_text(f"⬇️ Downloading: **{name1}**")
+                ytf = f'b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba'
+                cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+                res_file = await helper.download_video(url, cmd, name)
+                filename = res_file
+                await prog.delete(True)
+                await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
+                count += 1
+                await asyncio.sleep(1)
 
-                else:
-                    prog = await m.reply_text(f"Downloading: **{name1}**")
-                    res_file = await helper.download_video(url, cmd, name)
-                    filename = res_file
-                    await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
-                    count += 1
-                    time.sleep(1)
+            except FloodWait as e:
+                await asyncio.sleep(e.x)
+                continue
 
             except Exception as e:
                 await m.reply_text(
