@@ -14,6 +14,7 @@ import sys
 import re
 import os
 
+
 # -------------------------
 # Bot Setup
 # -------------------------
@@ -61,19 +62,24 @@ async def restart_handler(_, m: Message):
 # -------------------------
 @bot.on_message(filters.command(["txt"]))
 async def txt_cmd(bot: Client, m: Message):
-    editable = await m.reply_text("**Please send TXT file for download**")
-    input: Message = await bot.listen(editable.chat.id)
 
-    y = await input.download()
+    editable = await m.reply_text("**Please send TXT file for download**")
+    input_msg: Message = await bot.listen(editable.chat.id)
+
+    y = await input_msg.download()
     file_name, ext = os.path.splitext(os.path.basename(y))
     x = y
 
     path = f"./downloads/{m.chat.id}"
     os.makedirs(path, exist_ok=True)
 
+    # -------------------------
+    # Read TXT links
+    # -------------------------
     try:
         with open(x, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
+
         content = content.split("\n")
 
         links = []
@@ -82,11 +88,12 @@ async def txt_cmd(bot: Client, m: Message):
                 links.append(i.split("://", 1))
 
         os.remove(x)
-    except:
+
+    except Exception:
         await m.reply_text("❌ Invalid file input.")
         try:
             os.remove(x)
-        except:
+        except Exception:
             pass
         return
 
@@ -144,7 +151,7 @@ async def txt_cmd(bot: Client, m: Message):
         "Example: `https://envs.sh/Hlb.jpg`\n"
         "Or if you don't want custom thumbnail send: `no`"
     )
-    input6 = await bot.listen(editable.chat.id)
+    input6: Message = await bot.listen(editable.chat.id)
     raw_text6 = input6.text
     await input6.delete(True)
     await editable.delete()
@@ -158,6 +165,9 @@ async def txt_cmd(bot: Client, m: Message):
 
     count = 1 if len(links) == 1 else int(raw_text)
 
+    # -------------------------
+    # MAIN LOOP
+    # -------------------------
     try:
         for i in range(count - 1, len(links)):
 
@@ -175,7 +185,7 @@ async def txt_cmd(bot: Client, m: Message):
                 url = "https://" + V
 
             # ----------------------------
-            # SPECIAL CASES
+            # Special cases
             # ----------------------------
             if "visionias" in url:
                 async with ClientSession() as session:
@@ -183,27 +193,15 @@ async def txt_cmd(bot: Client, m: Message):
                         text = await resp.text()
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
 
-            elif "https://cpvod.testbook.com/" in url:
-                url = url.replace("https://cpvod.testbook.com/", "https://media-cdn.classplusapp.com/drm/")
-                url = "https://dragoapi.vercel.app/classplus?link=" + url
-                mpd, keys = helper.get_mps_and_keys(url)
-                url = mpd
-                keys_string = " ".join([f"--key {key}" for key in keys])
-
-            elif "classplusapp.com/drm/" in url:
-                url = "https://dragoapi.vercel.app/classplus?link=" + url
-                mpd, keys = helper.get_mps_and_keys(url)
-                url = mpd
-                keys_string = " ".join([f"--key {key}" for key in keys])
-
-            elif "edge.api.brightcove.com" in url:
-                await m.reply_text("Brightcove links are not supported in this bot build.")
-                continue
-
-            elif "encrypted.m" in url and "*" in url:
+            # Appx encrypted
+            appxkey = None
+            if "encrypted.m" in url and "*" in url:
                 appxkey = url.split("*")[1]
                 url = url.split("*")[0]
 
+            # ----------------------------
+            # Safe Name
+            # ----------------------------
             name1 = (
                 links[i][0]
                 .replace("\t", "")
@@ -218,7 +216,7 @@ async def txt_cmd(bot: Client, m: Message):
             )
 
             if not name1:
-                name1 = f"File_{count}"
+                name1 = f"File_{i+1}"
 
             name = f"{name1[:60]}"
 
@@ -247,50 +245,74 @@ async def txt_cmd(bot: Client, m: Message):
             # ----------------------------
             # DOWNLOAD LOGIC
             # ----------------------------
-
             try:
-                # ✅ PDF FIX (yt-dlp हटाया)
-                if ".pdf" in url:
-    try:
-        pdf_file = await helper.pdf_download(url, f"{name}.pdf")
-        await bot.send_document(chat_id=m.chat.id, document=pdf_file, caption=cc1)
-        os.remove(pdf_file)
-        count += 1
-        continue
-    except Exception as e:
-        await m.reply_text(f"❌ PDF download failed: {e}\n\nLink: {url}")
-        count += 1
-        continue
+
+                # ✅ PDF FIX (yt-dlp removed)
+                if ".pdf" in url.lower():
+                    try:
+                        prog = await m.reply_text(f"📄 Downloading PDF: **{name1}**")
+                        pdf_file = await helper.pdf_download(url, f"{name}.pdf")
+                        await prog.delete(True)
+
+                        await bot.send_document(
+                            chat_id=m.chat.id,
+                            document=pdf_file,
+                            caption=cc1
+                        )
+
+                        if os.path.exists(pdf_file):
+                            os.remove(pdf_file)
+
+                        count += 1
+                        continue
+
+                    except Exception as e:
+                        await m.reply_text(f"❌ PDF download failed: {e}\n\nLink: {url}")
+                        count += 1
+                        continue
 
                 # Images
                 if any(img in url.lower() for img in [".jpeg", ".png", ".jpg"]):
                     subprocess.run(["wget", url, "-O", f"{name}.jpg"], check=True)
                     await bot.send_photo(chat_id=m.chat.id, caption=cc2, photo=f"{name}.jpg")
+
                     if os.path.exists(f"{name}.jpg"):
                         os.remove(f"{name}.jpg")
+
                     count += 1
                     continue
 
                 # Encrypted appx video
                 if "encrypted.m" in url:
                     prog = await m.reply_text(f"🔐 Downloading encrypted video: **{name1}**")
-                    cmd = f'yt-dlp -f "b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba" "{url}" -o "{name}.mp4"'
+
+                    ytf = f'b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba'
+                    cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+
                     res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)
+
                     filename = res_file
                     await prog.delete(True)
+
                     await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
+
                     count += 1
                     await asyncio.sleep(1)
                     continue
 
                 # Normal video
                 prog = await m.reply_text(f"⬇️ Downloading: **{name1}**")
+
                 ytf = f'b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba'
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
+
                 res_file = await helper.download_video(url, cmd, name)
+
                 filename = res_file
                 await prog.delete(True)
+
                 await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
+
                 count += 1
                 await asyncio.sleep(1)
 
