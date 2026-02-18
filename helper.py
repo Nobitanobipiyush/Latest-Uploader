@@ -315,6 +315,7 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
 
     await processing_msg.delete(True)
     await reply.delete(True)
+    
 
 
 # ------------------ PDF WATERMARK (OPTIONAL) ------------------
@@ -359,3 +360,26 @@ async def watermark_pdf(file_path, watermark_text):
 
     os.remove(file_path)
     return new_file_path
+    import requests
+import os
+
+async def pdf_download(url, file_name, chunk_size=1024 * 1024):
+    if os.path.exists(file_name):
+        os.remove(file_name)
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    r = requests.get(url, headers=headers, allow_redirects=True, stream=True, timeout=60)
+
+    if r.status_code != 200:
+        raise Exception(f"HTTP {r.status_code}")
+
+    with open(file_name, "wb") as f:
+        for chunk in r.iter_content(chunk_size=chunk_size):
+            if chunk:
+                f.write(chunk)
+
+    if not os.path.exists(file_name) or os.path.getsize(file_name) < 100:
+        raise Exception("PDF not downloaded / empty")
+
+    return file_name
