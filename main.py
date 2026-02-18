@@ -7,7 +7,6 @@ from pyrogram.types import Message
 from subprocess import getstatusoutput
 from aiohttp import ClientSession
 import helper
-from logger import logging
 import time
 import asyncio
 import sys
@@ -31,8 +30,6 @@ auth_users = [6530997270]
 photo1 = "https://envs.sh/PQ_.jpg"
 getstatusoutput(f"wget {photo1} -O 'photo.jpg'")
 photo = "photo.jpg"
-
-token_cp = "your cp token"
 
 
 # -------------------------
@@ -141,16 +138,7 @@ async def txt_cmd(bot: Client, m: Message):
 
     MR = "Group Admin" if raw_text3 == "df" else raw_text3
 
-    await editable.edit("**If PW MPD links enter working token (else send df)**")
-    input11: Message = await bot.listen(editable.chat.id)
-    token = input11.text
-    await input11.delete(True)
-
-    await editable.edit(
-        "Now send Thumb url for Custom Thumbnail.\n"
-        "Example: `https://envs.sh/Hlb.jpg`\n"
-        "Or if you don't want custom thumbnail send: `no`"
-    )
+    await editable.edit("**Now send Thumb url for Custom Thumbnail (or send `no`)**")
     input6: Message = await bot.listen(editable.chat.id)
     raw_text6 = input6.text
     await input6.delete(True)
@@ -193,7 +181,7 @@ async def txt_cmd(bot: Client, m: Message):
                         text = await resp.text()
                         url = re.search(r"(https://.*?playlist.m3u8.*?)\"", text).group(1)
 
-            # Appx encrypted
+            # Appx encrypted key
             appxkey = None
             if "encrypted.m" in url and "*" in url:
                 appxkey = url.split("*")[1]
@@ -247,7 +235,7 @@ async def txt_cmd(bot: Client, m: Message):
             # ----------------------------
             try:
 
-                # ✅ PDF FIX (yt-dlp removed)
+                # ✅ PDF FIX (requests based)
                 if ".pdf" in url.lower():
                     try:
                         prog = await m.reply_text(f"📄 Downloading PDF: **{name1}**")
@@ -271,6 +259,27 @@ async def txt_cmd(bot: Client, m: Message):
                         count += 1
                         continue
 
+                # ✅ M3U8 SUPPORT
+                if "master.m3u8" in url.lower() or url.lower().endswith(".m3u8"):
+                    try:
+                        prog = await m.reply_text(f"⬇️ Downloading M3U8: **{name1}**")
+
+                        cmd = f'yt-dlp -f "bv[height<={raw_text2}]+ba/b" "{url}" -o "{name}.mp4"'
+                        res_file = await helper.download_video(url, cmd, name)
+                        filename = res_file
+
+                        await prog.delete(True)
+                        await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
+
+                        count += 1
+                        await asyncio.sleep(1)
+                        continue
+
+                    except Exception as e:
+                        await m.reply_text(f"❌ M3U8 download failed: {e}\n\nLink: {url}")
+                        count += 1
+                        continue
+
                 # Images
                 if any(img in url.lower() for img in [".jpeg", ".png", ".jpg"]):
                     subprocess.run(["wget", url, "-O", f"{name}.jpg"], check=True)
@@ -290,10 +299,9 @@ async def txt_cmd(bot: Client, m: Message):
                     cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 
                     res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)
-
                     filename = res_file
-                    await prog.delete(True)
 
+                    await prog.delete(True)
                     await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
 
                     count += 1
@@ -307,10 +315,9 @@ async def txt_cmd(bot: Client, m: Message):
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 
                 res_file = await helper.download_video(url, cmd, name)
-
                 filename = res_file
-                await prog.delete(True)
 
+                await prog.delete(True)
                 await helper.send_vid(bot, m, cc, filename, thumb, name, prog)
 
                 count += 1
