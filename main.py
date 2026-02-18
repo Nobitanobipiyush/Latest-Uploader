@@ -24,8 +24,8 @@ bot = Client(
     api_hash=os.environ.get("API_HASH", "add"),
 )
 
-owner_id = [6530997270]
-auth_users = [6530997270]
+owner_id = [8440950205]
+auth_users = [8440950205]
 
 photo1 = "https://envs.sh/PQ_.jpg"
 getstatusoutput(f"wget {photo1} -O 'photo.jpg'")
