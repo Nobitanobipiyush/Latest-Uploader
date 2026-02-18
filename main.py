@@ -251,16 +251,16 @@ async def txt_cmd(bot: Client, m: Message):
             try:
                 # ✅ PDF FIX (yt-dlp हटाया)
                 if ".pdf" in url:
-                    try:
-                        subprocess.run(["wget", "-O", f"{name}.pdf", url], check=True)
-                        await bot.send_document(chat_id=m.chat.id, document=f"{name}.pdf", caption=cc1)
-                        count += 1
-                        os.remove(f"{name}.pdf")
-                        continue
-                    except Exception as e:
-                        await m.reply_text(f"❌ PDF download failed: {e}\n\nLink: {url}")
-                        count += 1
-                        continue
+    try:
+        pdf_file = await helper.pdf_download(url, f"{name}.pdf")
+        await bot.send_document(chat_id=m.chat.id, document=pdf_file, caption=cc1)
+        os.remove(pdf_file)
+        count += 1
+        continue
+    except Exception as e:
+        await m.reply_text(f"❌ PDF download failed: {e}\n\nLink: {url}")
+        count += 1
+        continue
 
                 # Images
                 if any(img in url.lower() for img in [".jpeg", ".png", ".jpg"]):
