@@ -303,7 +303,8 @@ async def send_vid(bot: Client, m: Message, cc, filename, thumb, name, prog):
     try:
         await reply.delete(True)
     except:
-        passimport os
+        import os
+import requests
 import subprocess
 import mmap
 import logging
